@@ -1,0 +1,51 @@
+<!-- contactos/views/contacto.xml -->
+<odoo>
+  <record id="action_contactos" model="ir.actions.act_window">
+    <field name="name">contactos</field>
+    <field name="res_model">contactos.contacto</field>
+    <field name="view_mode">list,form</field>
+  </record>
+
+  <record id="view_contacto_list" model="ir.ui.view">
+    <field name="name">contacto.tree</field>
+    <field name="model">contactos.contacto</field>
+    <field name="arch" type="xml">
+      <list>
+        <field name="persona_id" invisible="1"/>
+        <field name="nombre"/>
+        <field name="descripcion"/>
+        <field name="telefono"/>
+        <field name="email"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="view_contacto_form" model="ir.ui.view">
+    <field name="name">contacto.form</field>
+    <field name="model">contactos.contacto</field>
+    <field name="arch" type="xml">
+      <form>
+        <sheet>
+          <group>
+            <field name="persona_id" invisible="1"/>
+            <field name="nombre"/>
+            <field name="telefono"/>
+            <field name="email"/>
+            <field name="descripcion"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <menuitem id="menu_contactos_root" name="contactos" sequence="10"/>
+  <menuitem id="menu_contactos_action" name="Catálogo de contactos"
+            parent="menu_contactos_root" action="action_contactos"/>
+
+  <!-- (Opcional) menú directo al wizard de teléfono -->
+  <menuitem id="menu_contactos_buscar_tel"
+            name="Buscar persona por teléfono"
+            parent="menu_contactos_root"
+            action="contactos.action_phone_lookup_wizard"
+            sequence="20"/>
+</odoo>

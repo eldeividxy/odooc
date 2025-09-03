@@ -1,0 +1,14 @@
+<!-- productos-views-codigoproducto.xml -->
+<odoo>
+    <record id="view_codigoproducto_tree" model="ir.ui.view">
+        <field name="name">codigoproducto.tree</field>
+        <field name="model">productos.codigoproductosat</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="code"/>
+                <field name="descripcion"/>
+                <field name="similar"/>
+            </list>
+        </field>
+    </record>
+</odoo>

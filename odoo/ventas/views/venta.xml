@@ -1,0 +1,283 @@
+<odoo>
+
+    <!-- =============================
+         ACCIÓN PRINCIPAL (Lista + Form Detalle)
+         ============================= -->
+    <record id="action_ventas" model="ir.actions.act_window">
+        <field name="name">Ventas</field>
+        <field name="res_model">ventas.venta</field>
+        <field name="view_mode">list,form</field>
+        <!-- Oculta botón "Crear" en la acción principal -->
+        <field name="context">{'create': False}</field>
+        <field name="target">current</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea tu primera venta</p>
+        </field>
+    </record>
+
+    <!-- =============================
+         LISTA (árbol)
+         ============================= -->
+    <record id="view_venta_list" model="ir.ui.view">
+        <field name="name">venta.list</field>
+        <field name="model">ventas.venta</field>
+        <field name="arch" type="xml">
+            <list string="Ventas"
+              decoration-success="state == 'confirmed'"
+              decoration-danger="state == 'cancelled'"
+              decoration-muted="state == 'draft'">
+                <field name="codigo" string="Folio"/>
+                <field name="fecha"/>
+                <field name="cliente"/>
+                <field name="contrato"/>
+                <field name="sucursal_id"/>
+                <!--<field name="total" sum="Total"/-->
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- =============================
+         FORM EDITABLE
+         ============================= -->
+    <record id="view_venta_form" model="ir.ui.view">
+        <field name="name">venta.form</field>
+        <field name="model">ventas.venta</field>
+        <field name="arch" type="xml">
+            <form string="Ventas">
+                <header>
+                    <button name="%(ventas.action_ventas)d" type="action" string="Volver" class="btn-secondary"/>
+                    <button name="action_confirm" type="object" string="Confirmar" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_cancel"  type="object" string="Cancelar" class="btn-secondary" invisible="state not in ['confirmed','invoiced']"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,invoiced,cancelled"/>
+                    <button name="action_open_cfdi_wizard" type="object" string="Facturar (CFDI)" class="btn-primary" invisible="state not in ['confirmed','invoiced']"/>
+                    <field name="cfdi_uuid" readonly="1" class="oe_inline" invisible="cfdi_uuid == False"/>
+                    <button name="action_download_cfdi" type="object" string="Descargar XML" class="btn-secondary" invisible="cfdi_uuid == False"/>
+
+                </header>
+
+                <sheet>
+
+                    <!-- Tiles arriba a la derecha -->
+                    <div class="oe_button_box" name="venta_header_stats">
+                        <button type="object" name="action_noop" class="oe_stat_button" icon="fa-hashtag">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="codigo" readonly="1"/></span>
+                                <span class="o_stat_text">Folio</span>
+                            </div>
+                        </button>
+                        <button type="object" name="action_noop" class="oe_stat_button" icon="fa-calendar">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="fecha" readonly="1"/></span>
+                                <span class="o_stat_text">Fecha</span>
+                            </div>
+                        </button>
+
+                        <button type="object" name="action_open_attachments" class="oe_stat_button" icon="fa-paperclip" invisible="attachment_count == 0">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="attachment_count"/></span>
+                                <span class="o_stat_text">Adjuntos</span>
+                            </div>
+                        </button>
+
+                    </div>
+
+                    <!-- Cuerpo -->
+                    <group string="Datos de la Venta" colspan="4">
+                        <group colspan="2">
+                            <field name="cliente"/>
+                            <field name="empresa_id"/>
+                            <field name="sucursal_id" domain="[('empresa','=', empresa_id)]" options="{'no_create_edit': True}"/>
+                            <field name="metododepago" widget="radio" options="{'horizontal': true}"/>
+                            <field name="formadepago" required="metododepago == 'PUE'" invisible="metododepago != 'PUE'"/>
+                            <field name="contrato" required="metododepago != 'PUE'" invisible="metododepago == 'PUE'"/>
+                            <field name="observaciones"/>
+                        </group>
+
+                    <!-- Totales grandes y a la derecha -->
+                        <group string="Totales" colspan="2" class="oe_subtotal_footer o_right" style="min-width:280px; margin-left:auto; text-align:right;">
+
+                            <!-- Subtotal -->
+                            <label for="importe" string="Subtotal" class="o_form_label"/>
+                            <field name="importe" readonly="1" nolabel="1" style="text-align:right;"/>
+
+                            <!-- IVA -->
+                            <label for="iva" string="IVA" class="o_form_label"/>
+                            <field name="iva" readonly="1" nolabel="1" style="text-align:right;"/>
+
+                            <!-- IEPS -->
+                            <label for="ieps" string="IEPS" class="o_form_label"/>
+                            <field name="ieps" readonly="1" nolabel="1" style="text-align:right;"/>
+
+                            <separator string="TOTAL" colspan="2"/>
+                            <field name="total" readonly="1" nolabel="1" style="font-size:22px; font-weight:700; text-align:right;"/>
+                        </group>
+
+                    </group>
+
+                    <notebook>
+                     <page string="Detalles de Venta">
+                        <field name="detalle" widget="one2many_list">
+                         <list editable="bottom" string="Detalles">
+                            <field name="producto_id"/>
+                            <field name="cantidad" sum="Cant."/>
+                            <field name="precio"/>
+                            <field name="iva"/>
+                            <field name="ieps"/>
+                            <field name="importe" sum="Importe"/>
+                         </list>
+                        </field>
+                     </page>
+
+                     <page string="Buenas prácticas">
+                        <group>
+                            <p><b>Checklist antes de confirmar:</b></p>
+                            <ul style="margin-top:0;">
+                                <li>Cliente validado (datos completos y contrato vigente si es PPD).</li>
+                                <li>Stock suficiente en la <i>sucursal</i> seleccionada.</li>
+                                <li>Precios correctos según método: <b>PUE</b> (contado) vs <b>PPD</b> (crédito).</li>
+                                <li>Impuestos (IVA/IEPS) revisados en cada línea.</li>
+                                <li>Observaciones claras (lugar de entrega, condiciones especiales, etc.).</li>
+                            </ul>
+                            <p style="color:#666;">Tip: <i>La Fecha y el Folio se generan automáticamente al confirmar.</i></p>
+                        </group>
+                     </page>
+                    </notebook>
+                  
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+
+    <!-- =============================
+         FORM SOLO LECTURA (DETALLE)
+         ============================= -->
+    <record id="view_venta_form_detalle" model="ir.ui.view">
+        <field name="name">venta.form.detalle</field>
+        <field name="model">ventas.venta</field>
+        <field name="arch" type="xml">
+            <form string="Ventas" edit="false" create="false" delete="false">
+                <header>
+                    <button name="action_confirm" type="object" string="Confirmar" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_cancel"  type="object" string="Cancelar" class="btn-secondary" invisible="state not in ['confirmed','invoiced']"/>
+                    <button name="action_open_edit" type="object" string="Editar" class="btn-primary" confirm="¿Editar este registro?" invisible="state == 'cancelled'"/>
+                    <button name="%(ventas.action_ventas)d" type="action" string="Volver" class="btn-secondary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,invoiced,cancelled"/>
+                    <button name="action_open_cfdi_wizard" type="object" string="Facturar (CFDI)" class="btn-primary" invisible="state not in ['confirmed','invoiced']"/>              
+
+                </header>
+
+                <sheet>
+                    <!-- Tiles -->
+                    <div class="oe_button_box" name="venta_header_stats">
+                        <button type="object" name="action_noop" class="oe_stat_button" icon="fa-hashtag">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="codigo" readonly="1"/></span>
+                                <span class="o_stat_text">Folio</span>
+                            </div>
+                        </button>
+                        <button type="object" name="action_noop" class="oe_stat_button" icon="fa-calendar">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="fecha" readonly="1"/></span>
+                                <span class="o_stat_text">Fecha</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <group string="Datos" colspan="4">
+                      <group colspan="2">
+                        <field name="cliente" readonly="1" options="{'no_open': True}"/>
+                        <field name="empresa_id" readonly="1"/>
+                        <field name="sucursal_id" readonly="1" options="{'no_open': True}"/>
+                        <field name="metododepago" readonly="1" widget="radio" options="{'horizontal': true}"/>
+                        <field name="formadepago" readonly="1" invisible="metododepago != 'PUE'"/>
+                        <field name="contrato" readonly="1" invisible="metododepago == 'PUE'" options="{'no_open': True}"/>
+                        <field name="observaciones" readonly="1"/>
+                      </group>
+
+                      <group string="Totales" colspan="2" class="oe_subtotal_footer o_right" style="min-width:280px; margin-left:auto; text-align:right;">
+
+                        <label for="importe" string="Subtotal" class="o_form_label"/>
+                        <field name="importe" readonly="1" nolabel="1" style="text-align:right;"/>
+
+                        <label for="iva" string="IVA" class="o_form_label"/>
+                        <field name="iva" readonly="1" nolabel="1" style="text-align:right;"/>
+
+                        <label for="ieps" string="IEPS" class="o_form_label"/>
+                        <field name="ieps" readonly="1" nolabel="1" style="text-align:right;"/>
+
+                        <separator string="TOTAL" colspan="2"/>
+                        <field name="total" readonly="1" nolabel="1" style="font-size:22px; font-weight:700; text-align:right;"/>
+                      </group>
+
+                    </group>
+
+                    <field name="detalle" widget="one2many_list" readonly="1" options="{'no_create': True, 'no_edit': True, 'no_open': True, 'no_create_edit': True}">
+                        <list string="Detalles de Venta">
+                            <field name="producto_id" readonly="1"/>
+                                <field name="cantidad" readonly="1" sum="Cant."/>
+                                <field name="precio" readonly="1"/>
+                                <field name="iva" readonly="1"/>
+                                <field name="ieps" readonly="1"/>
+                                <field name="importe" readonly="1" sum="Importe"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+
+    <!-- =============================
+         BINDINGS: forzar que el FORM por defecto sea el DETALLE
+         ============================= -->
+    <record id="action_ventas_list_view" model="ir.actions.act_window.view">
+        <field name="sequence" eval="10"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_venta_list"/>
+        <field name="act_window_id" ref="action_ventas"/>
+    </record>
+
+    <record id="action_ventas_form_detalle" model="ir.actions.act_window.view">
+        <field name="sequence" eval="20"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_venta_form_detalle"/>
+        <field name="act_window_id" ref="action_ventas"/>
+    </record>
+
+    <!-- =============================
+         ACCIÓN "NUEVA VENTA" (abre la vista EDIT directamente)
+         ============================= -->
+    <record id="action_ventas_new" model="ir.actions.act_window">
+        <field name="name">Nueva venta</field>
+        <field name="res_model">ventas.venta</field>
+        <field name="view_mode">form</field>
+        <field name="context">{'form_view_initial_mode': 'edit'}</field>
+        <field name="target">current</field>
+    </record>
+
+    <record id="action_ventas_new_form" model="ir.actions.act_window.view">
+        <field name="sequence" eval="10"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_venta_form"/>
+        <field name="act_window_id" ref="action_ventas_new"/>
+    </record>
+
+
+    <record id="seq_ventas_folio" model="ir.sequence">
+        <field name="name">Folio Ventas</field>
+        <field name="code">ventas.venta.folio</field>
+        <field name="prefix">V%(y)s%(month)s-</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- =============================
+         MENÚS
+         ============================= -->
+    <menuitem id="menu_root" name="Ventas" sequence="10" groups="base.group_user"/>
+    <menuitem id="menu_action" name="Listado de Ventas" parent="menu_root" action="action_ventas"/>
+    <menuitem id="menu_action_new" name="Nueva venta" parent="menu_root" action="action_ventas_new"/>
+
+</odoo>
